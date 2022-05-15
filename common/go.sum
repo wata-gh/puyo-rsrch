@@ -1,0 +1,4 @@
+github.com/BurntSushi/toml v1.1.0 h1:ksErzDEI1khOiGPgpwuI7x2ebx/uXQNw7xJpn9Eq1+I=
+github.com/BurntSushi/toml v1.1.0/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
+github.com/wata-gh/puyo2 v0.0.0-20220511163044-07904a35cd9b h1:qQyq46Zt3JsJgNcn2+fKML7O/qLn4ZaYO0m9Kk3E7HU=
+github.com/wata-gh/puyo2 v0.0.0-20220511163044-07904a35cd9b/go.mod h1:ve68f5p9MO8MJjh61fzilJ01FLPBZVJBVxFf9HDE/To=
