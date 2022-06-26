@@ -95,18 +95,8 @@ func checkAvailColor(bf *puyo2.BitField) puyo2.Color {
 	panic("no avaliable color.")
 }
 
-func checkBlueOnTop(bf *puyo2.BitField) bool {
-	fb := bf.Bits(puyo2.Blue)
-	m := fb.ToIntArray()
-	m[0] <<= 1
-	m[1] <<= 1
-	puyos := bf.Bits(puyo2.Red).Or(bf.Bits(puyo2.Green)).Or(bf.Bits(puyo2.Yellow)).ToIntArray()
-	return ((m[0]&puyos[0]) == m[0] && (m[1]&puyos[1]) == m[1]) == false
-}
-
 func check(config *puyorsrch.Config, field <-chan []int, satisfy chan<- puyo2.BitField, num int, wg *sync.WaitGroup) {
 	cnt := 0
-	resultFields := make(map[string]struct{})
 	bbf := puyo2.NewBitField()
 	for {
 		puyos := <-field
@@ -135,35 +125,17 @@ func check(config *puyorsrch.Config, field <-chan []int, satisfy chan<- puyo2.Bi
 
 		beforeDrop := bf.Clone()
 		bf.Drop(vanish)
-		if bf.Equals(beforeDrop) && checkBlueOnTop(bf) == false {
+		if bf.Equals(beforeDrop) {
 			result := bf.SimulateWithNewBitField()
 			if result.Chains == config.PuyoConfig.ExpectedChains {
-				clear := true
-				for _, c := range []puyo2.Color{puyo2.Red, puyo2.Green, puyo2.Yellow} {
-					if result.BitField.Bits(c).IsEmpty() == false {
-						clear = false
-					}
-				}
-				if clear {
-					nbf := bf.Normalize()
-					param := nbf.MattulwanEditorParam()
-					if param == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbcbdeddbbbdcbdddeeed" {
-						fmt.Println("==>")
-						beforeDrop.ShowDebug()
-					}
-					_, exist := resultFields[param]
-					if !exist {
-						resultFields[param] = struct{}{}
-						satisfy <- *nbf
-					}
-				}
+				satisfy <- *bf
 			}
 		}
 		cnt++
 	}
 	// 終了のために空フィールドを送る
 	satisfy <- *puyo2.NewBitField()
-	fmt.Fprintf(os.Stderr, "[%d]wg.Done\n", num)
+	fmt.Fprintf(os.Stderr, "[%d] cnt: %d wg.Done\n", cnt, num)
 	wg.Done()
 }
 
