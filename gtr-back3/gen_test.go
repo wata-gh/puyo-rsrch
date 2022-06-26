@@ -8,31 +8,25 @@ func TestValidEmpty(t *testing.T) {
 	if validEmpty([]int{0, 1, 2}) == false {
 		t.Error("validEmpty() All 4th row must be valid")
 	}
-	if validEmpty([]int{1, 2, 3}) == false {
-		t.Error("validEmpty() All 4th row must be valid")
+	if validEmpty([]int{3}) == false {
+		t.Error("validEmpty() 3 must be valid")
 	}
-	if validEmpty([]int{0, 2, 3}) == false {
-		t.Error("validEmpty() All 4th row must be valid")
+	if validEmpty([]int{3, 7}) == false {
+		t.Error("validEmpty() 3,7 must be valid")
 	}
-	if validEmpty([]int{0, 2, 4}) == false {
-		t.Error("validEmpty() 3rd row with 4th row must be valid")
+	if validEmpty([]int{0, 4, 8}) == false {
+		t.Error("validEmpty() 0,4,8 row must be valid")
 	}
-	if validEmpty([]int{2, 3, 7}) == false {
-		t.Error("validEmpty() 3rd row with 4th row must be valid")
+	if validEmpty([]int{14}) {
+		t.Error("validEmpty() 14 must be invalid")
 	}
-	if validEmpty([]int{0, 3, 7}) == false {
-		t.Error("validEmpty() 3rd row with 4th row must be valid")
+	if validEmpty([]int{0, 4, 8, 11, 15}) == false {
+		t.Error("validEmpty() 0,4,8,11,15 must be valid")
 	}
-	if validEmpty([]int{1, 5, 8}) == false {
-		t.Error("validEmpty() 2nd row with 3rd and 4th row must be valid")
+	if validEmpty([]int{0, 5}) {
+		t.Error("validEmpty() 0,5 must be invalid")
 	}
-	if validEmpty([]int{3, 7, 10}) == false {
-		t.Error("validEmpty() 2nd row with 3rd and 4th row must be valid")
-	}
-	if validEmpty([]int{0, 4, 8}) {
-		t.Errorf("validEmpty() 2nd row without 3rd and 4th row must be invalid")
-	}
-	if validEmpty([]int{0, 5, 8}) {
-		t.Errorf("validEmpty() 2nd row with 3rd row but without 4th row must be invalid")
+	if validEmpty([]int{2, 6, 10, 13, 17}) == false {
+		t.Error("validEmpty() 2,6,10,13,17 must be valid")
 	}
 }
