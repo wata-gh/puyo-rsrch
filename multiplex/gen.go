@@ -33,10 +33,6 @@ func remove(s []int, i int) []int {
 	return s[:len(s)-1]
 }
 
-func validEmpty(list []int) bool {
-	return true
-}
-
 func genCombinations(fieldc int, base []int, cache map[[CHAINC]int]struct{}, colorc []int, field chan<- []int) {
 	ctotal := 0
 	for _, c := range colorc {
@@ -84,7 +80,7 @@ func genColorCombinations(fieldc int, base []int, cache map[[CHAINC]int]struct{}
 }
 
 func Gen(field chan<- []int, grc int) {
-	fieldc := 8
+	fieldc := FIELDC
 	colorc := []int{}
 	base := []int{}
 	for i := 0; i < fieldc; i++ {
