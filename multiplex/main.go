@@ -79,42 +79,79 @@ var MULTIPLEX_27 = [...][2]int{
 	{2, 1},
 }
 
+// multiplex27
 func validEmpty(list []int) bool {
 	for _, v := range list {
-		if v <= 3 {
-			continue
-		}
-		if v <= 6 {
-			if contains(list, v-4) {
+		for i := v - 3; i >= 0; i -= 3 {
+			if contains(list, i) {
 				continue
 			}
 			return false
 		}
-		if v <= 10 {
-			if contains(list, v-4) && (v == 7 || contains(list, v-8)) {
-				continue
-			}
-			return false
-		}
-		if v <= 13 {
-			if contains(list, v-3) && contains(list, v-7) && contains(list, v-11) {
-				continue
-			}
-			return false
-		}
-		if v == 14 {
-			return false
-		}
-		if v <= 17 {
-			if contains(list, v-4) && contains(list, v-7) && contains(list, v-11) && contains(list, v-15) {
-				continue
-			}
-			return false
-		}
-		panic(list)
 	}
 	return true
 }
+
+// GTR 15
+// func validEmpty(list []int) bool {
+// 	for _, v := range list {
+// 		if v < 4 {
+// 			continue
+// 		}
+// 		if v < 8 {
+// 			if contains(list, v-4) {
+// 				continue
+// 			}
+// 			return false
+// 		}
+// 		if v < 11 {
+// 			if contains(list, v-3) && contains(list, v-7) {
+// 				continue
+// 			}
+// 			return false
+// 		}
+// 		return false
+// 	}
+// 	return true
+// }
+
+// GTR 18
+// func validEmpty(list []int) bool {
+// 	for _, v := range list {
+// 		if v <= 3 {
+// 			continue
+// 		}
+// 		if v <= 6 {
+// 			if contains(list, v-4) {
+// 				continue
+// 			}
+// 			return false
+// 		}
+// 		if v <= 10 {
+// 			if contains(list, v-4) && (v == 7 || contains(list, v-8)) {
+// 				continue
+// 			}
+// 			return false
+// 		}
+// 		if v <= 13 {
+// 			if contains(list, v-3) && contains(list, v-7) && contains(list, v-11) {
+// 				continue
+// 			}
+// 			return false
+// 		}
+// 		if v == 14 {
+// 			return false
+// 		}
+// 		if v <= 17 {
+// 			if contains(list, v-4) && contains(list, v-7) && contains(list, v-11) && contains(list, v-15) {
+// 				continue
+// 			}
+// 			return false
+// 		}
+// 		panic(list)
+// 	}
+// 	return true
+// }
 
 // func validEmpty(list []int) bool {
 // 	fb := puyo2.NewFieldBitsWithM([2]uint64{18446744073709551615, 18446744073709551615})
@@ -138,9 +175,45 @@ func validEmpty(list []int) bool {
 // }
 
 func index2field(idx int) [2]int {
-	return GTR_R_18[idx]
+	return MULTIPLEX_27[idx]
 }
 
+// GTR 15 check
+// func check(field <-chan []int, wg *sync.WaitGroup) {
+// 	for {
+// 		puyos := <-field
+// 		if len(puyos) == 0 {
+// 			break
+// 		}
+// 		bf := puyo2.NewBitField()
+// 		sort.Ints(puyos)
+// 		for n, puyo := range puyos {
+// 			for i := 0; puyo > 0; i++ {
+// 				if puyo&1 == 1 {
+// 					pos := index2field(i)
+// 					color := []puyo2.Color{puyo2.Red, puyo2.Green, puyo2.Blue, puyo2.Yellow}[n%4]
+// 					bf.SetColor(color, pos[0], pos[1])
+// 				}
+// 				puyo >>= 1
+// 			}
+// 		}
+// 		result := bf.SimulateWithNewBitField()
+// 		if result.BitField.Equals(bf) {
+// 			nbf := bf.Clone()
+// 			fb := puyo2.NewFieldBits()
+// 			fb.SetOnebit(0, 2)
+// 			nbf.Drop(fb)
+// 			result = nbf.SimulateWithNewBitField()
+// 			if result.Chains == CHAINC {
+// 				fmt.Println(bf.MattulwanEditorParam())
+// 				bf.ExportImage("results/" + bf.MattulwanEditorParam() + ".png")
+// 			}
+// 		}
+// 	}
+// 	wg.Done()
+// }
+
+// simple check
 func check(field <-chan []int, wg *sync.WaitGroup) {
 	for {
 		puyos := <-field

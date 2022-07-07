@@ -33,33 +33,10 @@ func remove(s []int, i int) []int {
 	return s[:len(s)-1]
 }
 
-func genCombinations(fieldc int, base []int, cache map[[CHAINC]int]struct{}, colorc []int, field chan<- []int) {
-	ctotal := 0
-	for _, c := range colorc {
-		ctotal += c
-	}
-
-	if fieldc > ctotal {
-		emptycs := combin.Combinations(len(base), fieldc-ctotal)
-		for _, emptyc := range emptycs {
-			if validEmpty(emptyc) {
-				base, _ := exclude(base, emptyc)
-				genColorCombinations(fieldc, base, cache, []int{}, colorc, field)
-			}
-		}
-	} else {
-		genColorCombinations(fieldc, base, cache, []int{}, colorc, field)
-	}
-}
-
-func genColorCombinations(fieldc int, base []int, cache map[[CHAINC]int]struct{}, bits []int, colorcs []int, field chan<- []int) {
+func genColorCombinations(fieldc int, base []int, n int, cache []map[int]struct{}, bits []int, colorcs []int, field chan<- []int) {
 	if len(colorcs) == 0 {
 		sort.Ints(bits)
-		key := *(*[CHAINC]int)(bits)
-		if _, ok := cache[key]; !ok {
-			cache[key] = struct{}{}
-			field <- bits
-		}
+		field <- bits
 		return
 	}
 
@@ -74,8 +51,52 @@ func genColorCombinations(fieldc int, base []int, cache map[[CHAINC]int]struct{}
 		for _, c := range cv {
 			bit |= 1 << c
 		}
+		if n > 0 {
+			if _, ok := cache[n-1][bit]; ok {
+				// fmt.Println("cache hit.", cv)
+				continue
+			}
+		}
+		cache[n][bit] = struct{}{}
+
+		// if n == 0 {
+		// 	cache[0][bit] = struct{}{}
+		// 	// fmt.Println("cache add.", cv)
+		// } else {
+		// 	if _, ok := cache[0][bit]; ok {
+		// 		// fmt.Println("cache hit.", cv)
+		// 		continue
+		// 	}
+		// }
 		newBits = append(newBits, bit)
-		genColorCombinations(fieldc, newBase, cache, newBits, colorcs[1:], field)
+		genColorCombinations(fieldc, newBase, n+1, cache, newBits, colorcs[1:], field)
+	}
+}
+
+func genCombinations(fieldc int, base []int, colorc []int, field chan<- []int) {
+	ctotal := 0
+	for _, c := range colorc {
+		ctotal += c
+	}
+
+	if fieldc > ctotal {
+		emptycs := combin.Combinations(len(base), fieldc-ctotal)
+		for _, emptyc := range emptycs {
+			if validEmpty(emptyc) {
+				cache := make([]map[int]struct{}, CHAINC)
+				for i := 0; i < len(cache); i++ {
+					cache[i] = map[int]struct{}{}
+				}
+				base, _ := exclude(base, emptyc)
+				genColorCombinations(fieldc, base, 0, cache, []int{}, colorc, field)
+			}
+		}
+	} else {
+		cache := make([]map[int]struct{}, CHAINC)
+		for i := 0; i < len(cache); i++ {
+			cache[i] = map[int]struct{}{}
+		}
+		genColorCombinations(fieldc, base, 0, cache, []int{}, colorc, field)
 	}
 }
 
@@ -90,7 +111,11 @@ func Gen(field chan<- []int, grc int) {
 		colorc = append(colorc, 4)
 	}
 
-	genCombinations(fieldc, base, map[[CHAINC]int]struct{}{}, colorc, field)
+	cache := make([]map[int]struct{}, CHAINC)
+	for i := 0; i < len(cache); i++ {
+		cache[i] = map[int]struct{}{}
+	}
+	genCombinations(fieldc, base, colorc, field)
 
 	for i := 0; i < grc; i++ {
 		field <- []int{}
