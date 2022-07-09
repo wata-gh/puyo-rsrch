@@ -97,7 +97,7 @@ func (p *Multi27Pattern) ShowResult() {
 	)
 }
 
-func (p *Multi27Pattern) Check(field <-chan []int, wg *sync.WaitGroup) {
+func (p *Multi27Pattern) Check(field <-chan []int, opt options, wg *sync.WaitGroup) {
 	pattern := Pattern(p)
-	Check(&pattern, field, wg)
+	Check(&pattern, field, opt, wg)
 }

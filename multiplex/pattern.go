@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"sync"
 
 	"github.com/wata-gh/puyo2"
@@ -63,7 +62,7 @@ type Pattern interface {
 	ValidEmpty(list []int) bool
 	ValidPlace(list []int) bool
 	Index2Field(idx int) [2]int
-	Check(field <-chan []int, wg *sync.WaitGroup)
+	Check(field <-chan []int, opt options, wg *sync.WaitGroup)
 	FieldC() int
 	ChainC() int
 	AddCombi(c int)
@@ -76,7 +75,7 @@ type Pattern interface {
 	ShowResult()
 }
 
-func Check(p *Pattern, field <-chan []int, wg *sync.WaitGroup) {
+func Check(p *Pattern, field <-chan []int, opt options, wg *sync.WaitGroup) {
 	for {
 		puyos := <-field
 		if len(puyos) == 0 {
@@ -98,8 +97,7 @@ func Check(p *Pattern, field <-chan []int, wg *sync.WaitGroup) {
 		if result.Chains == (*p).ChainC() {
 			(*p).AddFound()
 			fmt.Println(bf.MattulwanEditorParam())
-			os.Mkdir("results", 0755)
-			bf.ExportImage("results/" + bf.MattulwanEditorParam() + ".png")
+			bf.ExportImage(opt.Dir + "/" + bf.MattulwanEditorParam() + ".png")
 		}
 	}
 	wg.Done()
