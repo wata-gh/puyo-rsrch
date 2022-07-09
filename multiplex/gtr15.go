@@ -123,7 +123,7 @@ func (p *Gtr15Pattern) ShowResult() {
 	)
 }
 
-func (p *Gtr15Pattern) Check(field <-chan []int, wg *sync.WaitGroup) {
+func (p *Gtr15Pattern) Check(field <-chan []int, opt options, wg *sync.WaitGroup) {
 	for {
 		puyos := <-field
 		if len(puyos) == 0 {
@@ -152,7 +152,7 @@ func (p *Gtr15Pattern) Check(field <-chan []int, wg *sync.WaitGroup) {
 			if result.Chains == p.ChainC() {
 				p.AddFound()
 				fmt.Println(bf.MattulwanEditorParam())
-				bf.ExportImage("results/" + bf.MattulwanEditorParam() + ".png")
+				bf.ExportImage(opt.Dir + "/" + bf.MattulwanEditorParam() + ".png")
 			}
 		}
 	}

@@ -1,9 +1,17 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"os"
 	"sync"
 )
+
+type options struct {
+	Dir    string
+	Field  string
+	Chains int
+}
 
 // GTR 18
 // func validEmpty(list []int) bool {
@@ -43,44 +51,33 @@ import (
 // 	return true
 // }
 
-// func validEmpty(list []int) bool {
-// 	fb := puyo2.NewFieldBitsWithM([2]uint64{18446744073709551615, 18446744073709551615})
-// 	for _, v := range list {
-// 		pos := GTR_R_18[v]
-// 		fb.SetOnebit(pos[0], pos[1])
-// 	}
-// 	for _, v := range list {
-// 		pos := GTR_R_18[v]
-// 		fb.Onebit(pos[0], pos[1] + 1)
-// 	}
-// 	for _, v := range list {
-// 		for up := v - 3; up > 0; up -= 3 {
-// 			if contains(list, up) {
-// 				continue
-// 			}
-// 			return false
-// 		}
-// 	}
-// 	return true
-// }
-
-// func index2field(idx int) [2]int {
-// 	return MULTIPLEX_27[idx]
-// }
-
 func main() {
-	os.Mkdir("results", 0755)
+	var opt options
+	flag.StringVar(&opt.Dir, "dir", "results", "output directory path")
+	flag.StringVar(&opt.Field, "field", "multi27", "field pattern")
+	flag.IntVar(&opt.Chains, "chains", 0, "chain count")
+	flag.Parse()
+
+	os.Mkdir(opt.Dir, 0755)
 	var wg sync.WaitGroup
 	field := make(chan []int)
-	wg.Add(1)
-	// var pattern Pattern = &Gtr15Pattern{}
-	// var pattern Pattern = &Multi4Pattern{}
-	// var pattern Pattern = &Multi9Pattern{}
-	var pattern Pattern = &Multi27Pattern{
-		ChainCount: 4,
+	patterns := map[string]Pattern{
+		"gtr15": &Gtr15Pattern{},
+		"multi27": &Multi27Pattern{
+			ChainCount: opt.Chains,
+		},
 	}
-	go pattern.Check(field, &wg)
-	Gen(&pattern, field, 1)
+	pattern, ok := patterns[opt.Field]
+	if !ok {
+		fmt.Fprintln(os.Stderr, "no such field. "+opt.Field)
+		return
+	}
+	grc := 8
+	wg.Add(grc)
+	for i := 0; i < grc; i++ {
+		go pattern.Check(field, opt, &wg)
+	}
+	Gen(&pattern, field, grc)
 	wg.Wait()
 	pattern.ShowResult()
 }
