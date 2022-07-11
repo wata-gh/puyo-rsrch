@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -29,17 +30,13 @@ func cacheKey(bits []int) string {
 func calcCombiCount(fieldc int, ctotal int, colorc []int) int {
 	f := fieldc
 	emptyc := f - ctotal
-	combi := combination(f, emptyc)
+	combi := combin.Binomial(f, emptyc)
 	f -= emptyc
 	for _, c := range colorc {
-		combi *= combination(f, c)
+		combi *= combin.Binomial(f, c)
 		f -= c
 	}
 	return combi
-}
-
-func combination(n int, k int) int {
-	return permutation(n, k) / factorial(k)
 }
 
 func contains(s []int, e int) bool {
@@ -64,10 +61,6 @@ func exclude(b []int, e []int) ([]int, []int) {
 	return result, excluded
 }
 
-func factorial(n int) int {
-	return permutation(n, n-1)
-}
-
 func intArray2Bit(cv []int) int {
 	bit := 0
 	for _, c := range cv {
@@ -84,10 +77,10 @@ func cloneArray(ints []int) []int {
 
 func genColorCombinations(pattern *Pattern, fieldc int, base []int, n int, allCache map[string]struct{}, cache []map[int]struct{}, bits []int, colorcs []int, field chan<- []int) {
 	if len(colorcs) == 0 {
-		(*pattern).AddExecCombi()
+		(*pattern).Incr("ExecCombiCount")
 		key := cacheKey(bits)
 		if _, ok := allCache[key]; ok {
-			(*pattern).AddCacheSkip()
+			(*pattern).Incr("CacheSkipCount")
 			return
 		}
 		allCache[key] = struct{}{}
@@ -99,29 +92,37 @@ func genColorCombinations(pattern *Pattern, fieldc int, base []int, n int, allCa
 	for _, combin := range combins {
 		newBase, cv := exclude(cloneArray(base), combin)
 		bit := intArray2Bit(cv)
+		ncv := cloneArray(cv)
+		k := ncv[0]
+		ncv[0] %= 3
+		for i := 1; i < len(ncv); i++ {
+			ncv[i] -= k - ncv[0]
+		}
+		nbit := intArray2Bit(ncv)
 
 		// invalid place cache check
-		if _, ok := cache[(*pattern).ChainC()-1][bit]; ok {
-			(*pattern).AddExecCombi()
-			(*pattern).AddCacheSkip()
+		if _, ok := cache[(*pattern).ChainC()-1][nbit]; ok {
+			(*pattern).Incr("ExecCombiCount")
+			(*pattern).Incr("CacheSkipCount")
 			continue
 		}
 
-		if n != 0 {
+		if n != 0 && n != (*pattern).ChainC()-1 {
 			if _, ok := cache[n-1][bit]; ok {
-				(*pattern).AddExecCombi()
-				(*pattern).AddCacheSkip()
+				(*pattern).Incr("ExecCombiCount")
+				(*pattern).Incr("CacheSkipCount")
 				continue
 			}
 		}
 
 		// check valid place to put puyos
-		if (*pattern).ValidPlace(cv) == false {
-			cache[(*pattern).ChainC()-1][bit] = struct{}{}
-			(*pattern).AddExecCombi()
-			(*pattern).AddInvalidPlace()
+		if (*pattern).ValidPlace(ncv) == false {
+			cache[(*pattern).ChainC()-1][nbit] = struct{}{}
+			(*pattern).Incr("ExecCombiCount")
+			(*pattern).Incr("InvalidPlaceCount")
 			continue
 		}
+
 		newBits := append(cloneArray(bits), bit)
 		if n < (*pattern).ChainC()-1 {
 			cache[n][bit] = struct{}{}
@@ -141,7 +142,7 @@ func handleCondition(condition <-chan conditions, wg *sync.WaitGroup) {
 		for i := 0; i < len(cache); i++ {
 			cache[i] = map[int]struct{}{}
 		}
-		allCache := make(map[string]struct{}, (*cond.pattern).ChainC())
+		allCache := make(map[string]struct{})
 		genColorCombinations(cond.pattern, (*cond.pattern).FieldC(), cond.base, 0, allCache, cache, []int{}, cond.colorc, cond.field)
 	}
 	wg.Done()
@@ -153,15 +154,12 @@ func genCombinations(pattern *Pattern, base []int, colorc []int, condition chan<
 		ctotal += c
 	}
 	fieldc := (*pattern).FieldC()
-	(*pattern).AddCombi(calcCombiCount(fieldc, ctotal, colorc))
+	(*pattern).Add("CombiCount", calcCombiCount(fieldc, ctotal, colorc))
 
 	if fieldc > ctotal {
-		emptycs := combin.Combinations(len(base), fieldc-ctotal)
+		emptycs := (*pattern).GenValidEmpties(pattern, base, fieldc, ctotal)
+		fmt.Fprintf(os.Stderr, "valid empties: %d\n", len(emptycs))
 		for _, emptyc := range emptycs {
-			if (*pattern).ValidEmpty(emptyc) == false {
-				(*pattern).AddInvalidEmpty()
-				continue
-			}
 			base, _ := exclude(base, emptyc)
 			cond := conditions{
 				pattern: pattern,
@@ -190,18 +188,6 @@ func genCombinations(pattern *Pattern, base []int, colorc []int, condition chan<
 	}
 }
 
-func permutation(n int, k int) int {
-	v := 1
-	if 0 < k && k <= n {
-		for i := 0; i < k; i++ {
-			v *= (n - i)
-		}
-	} else if k > n {
-		v = 0
-	}
-	return v
-}
-
 func Gen(pattern *Pattern, field chan<- []int, grc int) {
 	var wg sync.WaitGroup
 	fieldc := (*pattern).FieldC()
@@ -223,6 +209,7 @@ func Gen(pattern *Pattern, field chan<- []int, grc int) {
 
 	genCombinations(pattern, base, colorc, condition, field, conditionGrc)
 
+	wg.Wait()
 	for i := 0; i < grc; i++ {
 		field <- []int{}
 	}

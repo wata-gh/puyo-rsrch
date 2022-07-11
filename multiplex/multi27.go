@@ -5,10 +5,13 @@ import (
 	"os"
 	"sort"
 	"sync"
+
+	"github.com/wata-gh/puyo2"
+	"gonum.org/v1/gonum/stat/combin"
 )
 
 type Multi27Pattern struct {
-	CacheSkip         int
+	CacheSkipCount    int
 	CombiCount        int
 	ExecCombiCount    int
 	CheckCount        int
@@ -16,6 +19,85 @@ type Multi27Pattern struct {
 	InvalidEmptyCount int
 	InvalidPlaceCount int
 	ChainCount        int
+	increment         chan *Increment
+}
+
+func (p *Multi27Pattern) incrementer() {
+outer:
+	for {
+		incr := <-p.increment
+		switch incr.name {
+		case "CacheSkipCount":
+			p.CacheSkipCount += incr.value
+		case "CombiCount":
+			p.CombiCount += incr.value
+		case "ExecCombiCount":
+			p.ExecCombiCount += incr.value
+		case "CheckCount":
+			p.CheckCount += incr.value
+		case "FoundCount":
+			p.FoundCount += incr.value
+		case "InvalidEmptyCount":
+			p.InvalidEmptyCount += incr.value
+		case "InvalidPlaceCount":
+			p.InvalidPlaceCount += incr.value
+		case "end":
+			break outer
+		default:
+			panic(fmt.Sprintf("invalid increment name. %+v", incr))
+		}
+	}
+}
+
+func (p *Multi27Pattern) Init() {
+	p.increment = make(chan *Increment)
+	go p.incrementer()
+}
+
+func (p *Multi27Pattern) Close() {
+	p.increment <- &Increment{
+		name:  "end",
+		value: 0,
+	}
+}
+
+func (p *Multi27Pattern) flip(emptyc []int) []int {
+	nemptyc := make([]int, len(emptyc))
+	for i, v := range emptyc {
+		switch v % 3 {
+		case 0:
+			nemptyc[i] = v + 2
+		case 1:
+			nemptyc[i] = v
+		case 2:
+			nemptyc[i] = v - 2
+		}
+	}
+	return nemptyc
+}
+
+func (p *Multi27Pattern) GenValidEmpties(pattern *Pattern, base []int, fieldc int, ctotal int) [][]int {
+	cache := make(map[string]struct{})
+	emptycs := combin.Combinations(len(base), fieldc-ctotal)
+	nemptycs := [][]int{}
+	for _, emptyc := range emptycs {
+		if (*pattern).ValidEmpty(emptyc) == false {
+			(*pattern).Incr("InvalidEmptyCount")
+			continue
+		}
+		if opt.ShapeOnly {
+			key := cacheKey(emptyc)
+			if _, ok := cache[key]; ok {
+				continue
+			}
+			femptyc := p.flip(emptyc)
+			fkey := cacheKey(femptyc)
+			cache[fkey] = struct{}{}
+		}
+
+		nemptycs = append(nemptycs, emptyc)
+	}
+	return nemptycs
 }
 
 func (p *Multi27Pattern) ValidPlace(list []int) bool {
@@ -49,6 +131,15 @@ func (p *Multi27Pattern) ValidEmpty(list []int) bool {
 	return true
 }
 
+func (p *Multi27Pattern) Vanish(list []int) bool {
+	fb := puyo2.NewFieldBits()
+	for _, v := range list {
+		pos := p.Index2Field(v)
+		fb.SetOnebit(pos[0], pos[1])
+	}
+	return fb.FindVanishingBits().IsEmpty() == false
+}
+
 func (p *Multi27Pattern) Index2Field(idx int) [2]int {
 	return MULTIPLEX_27[idx]
 }
@@ -61,26 +152,17 @@ func (p *Multi27Pattern) ChainC() int {
 	return p.ChainCount
 }
 
-func (p *Multi27Pattern) AddInvalidEmpty() {
-	p.InvalidEmptyCount++
+func (p *Multi27Pattern) Incr(name string) {
+	p.increment <- &Increment{
+		name:  name,
+		value: 1,
+	}
 }
-func (p *Multi27Pattern) AddCheck() {
-	p.CheckCount++
-}
-func (p *Multi27Pattern) AddCacheSkip() {
-	p.CacheSkip++
-}
-func (p *Multi27Pattern) AddCombi(c int) {
-	p.CombiCount += c
-}
-func (p *Multi27Pattern) AddExecCombi() {
-	p.ExecCombiCount++
-}
-func (p *Multi27Pattern) AddFound() {
-	p.FoundCount++
-}
-func (p *Multi27Pattern) AddInvalidPlace() {
-	p.InvalidPlaceCount++
+func (p *Multi27Pattern) Add(name string, c int) {
+	p.increment <- &Increment{
+		name:  name,
+		value: c,
+	}
 }
 
 func (p *Multi27Pattern) ShowResult() {
@@ -90,7 +172,7 @@ func (p *Multi27Pattern) ShowResult() {
 		p.ExecCombiCount,
 		float64(p.ExecCombiCount*100)/float64(p.CombiCount),
 		p.InvalidPlaceCount,
-		p.CacheSkip,
+		p.CacheSkipCount,
 		p.CheckCount,
 		float64(p.CheckCount*100)/float64(p.ExecCombiCount),
 		p.FoundCount,
@@ -99,5 +181,10 @@ func (p *Multi27Pattern) ShowResult() {
 
 func (p *Multi27Pattern) Check(field <-chan []int, opt options, wg *sync.WaitGroup) {
 	pattern := Pattern(p)
-	Check(&pattern, field, opt, wg)
+	if opt.ShapeOnly {
+		CheckShape(&pattern, field, opt, wg)
+	} else {
+		Check(&pattern, field, opt, wg)
+	}
+
 }

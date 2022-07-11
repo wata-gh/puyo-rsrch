@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 )
 
 type options struct {
-	Dir    string
-	Field  string
-	Chains int
+	Dir       string
+	Field     string
+	Chains    int
+	ShapeOnly bool
 }
 
 // GTR 18
@@ -51,16 +53,22 @@ type options struct {
 // 	return true
 // }
 
-func main() {
-	var opt options
+var opt options
+
+func init() {
 	flag.StringVar(&opt.Dir, "dir", "results", "output directory path")
 	flag.StringVar(&opt.Field, "field", "multi27", "field pattern")
 	flag.IntVar(&opt.Chains, "chains", 0, "chain count")
+	flag.BoolVar(&opt.ShapeOnly, "shape-only", false, "use shape only")
+}
+
+func main() {
+	now := time.Now()
 	flag.Parse()
 
 	os.Mkdir(opt.Dir, 0755)
 	var wg sync.WaitGroup
-	field := make(chan []int)
+	field := make(chan []int, 1000)
 	patterns := map[string]Pattern{
 		"gtr15": &Gtr15Pattern{},
 		"multi27": &Multi27Pattern{
@@ -72,6 +80,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "no such field. "+opt.Field)
 		return
 	}
+	pattern.Init()
 	grc := 8
 	wg.Add(grc)
 	for i := 0; i < grc; i++ {
@@ -79,5 +88,7 @@ func main() {
 	}
 	Gen(&pattern, field, grc)
 	wg.Wait()
+	fmt.Fprintf(os.Stderr, "%+v\n", opt)
 	pattern.ShowResult()
+	fmt.Fprintf(os.Stderr, "elapsed: %vms\n", time.Since(now).Milliseconds())
 }
