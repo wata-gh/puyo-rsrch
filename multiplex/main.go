@@ -90,5 +90,5 @@ func main() {
 	wg.Wait()
 	fmt.Fprintf(os.Stderr, "%+v\n", opt)
 	pattern.ShowResult()
-	fmt.Fprintf(os.Stderr, "経過: %vms\n", time.Since(now).Milliseconds())
+	fmt.Fprintf(os.Stderr, "elapsed: %vms\n", time.Since(now).Milliseconds())
 }
