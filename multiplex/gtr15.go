@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/wata-gh/puyo2"
+	"gonum.org/v1/gonum/stat/combin"
 )
 
 var GTR_R_15 = [...][2]int{
@@ -35,6 +36,47 @@ type Gtr15Pattern struct {
 	FoundCount        int
 	InvalidEmptyCount int
 	InvalidPlaceCount int
+	increment         chan *Increment
+}
+
+func (p *Gtr15Pattern) incrementer() {
+outer:
+	for {
+		incr := <-p.increment
+		switch incr.name {
+		case "CacheSkip":
+			p.CacheSkip += incr.value
+		case "CombiCount":
+			p.CombiCount += incr.value
+		case "ExecCombiCount":
+			p.ExecCombiCount += incr.value
+		case "CheckCount":
+			p.CheckCount += incr.value
+		case "FoundCount":
+			p.FoundCount += incr.value
+		case "InvalidEmptyCount":
+			p.InvalidEmptyCount += incr.value
+		case "InvalidPlaceCount":
+			p.InvalidPlaceCount += incr.value
+		case "end":
+			break outer
+		default:
+			panic(fmt.Sprintf("invalid increment name. %+v", incr))
+		}
+	}
+}
+
+func (p *Gtr15Pattern) flip(emptyc []int) []int {
+	panic("Gtr15Pattern does not implements flip metho.")
+}
+
+func (p *Gtr15Pattern) Init() {
+	p.increment = make(chan *Increment)
+	go p.incrementer()
+}
+
+func (p *Gtr15Pattern) GenValidEmpties(pattern *Pattern, base []int, fieldc int, ctotal int) [][]int {
+	return combin.Combinations(len(base), fieldc-ctotal)
 }
 
 func (p *Gtr15Pattern) ValidPlace(list []int) bool {
@@ -75,6 +117,15 @@ func (p *Gtr15Pattern) ValidEmpty(list []int) bool {
 	return true
 }
 
+func (p *Gtr15Pattern) Vanish(list []int) bool {
+	fb := puyo2.NewFieldBits()
+	for _, v := range list {
+		pos := p.Index2Field(v)
+		fb.SetOnebit(pos[0], pos[1])
+	}
+	return fb.FindVanishingBits().IsEmpty() == false
+}
+
 func (p *Gtr15Pattern) Index2Field(idx int) [2]int {
 	return GTR_R_15[idx]
 }
@@ -87,26 +138,17 @@ func (p *Gtr15Pattern) ChainC() int {
 	return 3
 }
 
-func (p *Gtr15Pattern) AddInvalidEmpty() {
-	p.InvalidEmptyCount++
+func (p *Gtr15Pattern) Incr(name string) {
+	p.increment <- &Increment{
+		name:  name,
+		value: 1,
+	}
 }
-func (p *Gtr15Pattern) AddCheck() {
-	p.CheckCount++
-}
-func (p *Gtr15Pattern) AddCacheSkip() {
-	p.CacheSkip++
-}
-func (p *Gtr15Pattern) AddCombi(c int) {
-	p.CombiCount += c
-}
-func (p *Gtr15Pattern) AddExecCombi() {
-	p.ExecCombiCount++
-}
-func (p *Gtr15Pattern) AddFound() {
-	p.FoundCount++
-}
-func (p *Gtr15Pattern) AddInvalidPlace() {
-	p.InvalidPlaceCount++
+func (p *Gtr15Pattern) Add(name string, c int) {
+	p.increment <- &Increment{
+		name:  name,
+		value: c,
+	}
 }
 
 func (p *Gtr15Pattern) ShowResult() {
@@ -129,7 +171,7 @@ func (p *Gtr15Pattern) Check(field <-chan []int, opt options, wg *sync.WaitGroup
 		if len(puyos) == 0 {
 			break
 		}
-		p.AddCheck()
+		p.Incr("CheckCount")
 		bf := puyo2.NewBitField()
 		sort.Ints(puyos)
 		for n, puyo := range puyos {
@@ -150,7 +192,7 @@ func (p *Gtr15Pattern) Check(field <-chan []int, opt options, wg *sync.WaitGroup
 			nbf.Drop(fb)
 			result = nbf.SimulateWithNewBitField()
 			if result.Chains == p.ChainC() {
-				p.AddFound()
+				p.Incr("FoundCount")
 				fmt.Println(bf.MattulwanEditorParam())
 				bf.ExportImage(opt.Dir + "/" + bf.MattulwanEditorParam() + ".png")
 			}
