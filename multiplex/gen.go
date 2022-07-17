@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"gonum.org/v1/gonum/stat/combin"
 )
@@ -22,7 +23,7 @@ func cacheKey(bits []int) string {
 	sort.Ints(bits)
 	var b strings.Builder
 	for _, bit := range bits {
-		fmt.Fprintf(&b, "_%d", bit)
+		fmt.Fprintf(&b, "_%x", bit)
 	}
 	return b.String()
 }
@@ -75,15 +76,9 @@ func cloneArray(ints []int) []int {
 	return newInts
 }
 
-func genColorCombinations(pattern *Pattern, fieldc int, base []int, n int, allCache map[string]struct{}, cache []map[int]struct{}, bits []int, colorcs []int, field chan<- []int) {
+func genColorCombinations(pattern *Pattern, fieldc int, base []int, n int, allCache map[string]int, cache []map[int]struct{}, bits []int, colorcs []int, field chan<- []int) {
 	if len(colorcs) == 0 {
 		(*pattern).Incr("ExecCombiCount")
-		key := cacheKey(bits)
-		if _, ok := allCache[key]; ok {
-			(*pattern).Incr("CacheSkipCount")
-			return
-		}
-		allCache[key] = struct{}{}
 		field <- bits
 		return
 	}
@@ -107,14 +102,6 @@ func genColorCombinations(pattern *Pattern, fieldc int, base []int, n int, allCa
 			continue
 		}
 
-		if n != 0 && n != (*pattern).ChainC()-1 {
-			if _, ok := cache[n-1][bit]; ok {
-				(*pattern).Incr("ExecCombiCount")
-				(*pattern).Incr("CacheSkipCount")
-				continue
-			}
-		}
-
 		// check valid place to put puyos
 		if (*pattern).ValidPlace(ncv) == false {
 			cache[(*pattern).ChainC()-1][nbit] = struct{}{}
@@ -124,11 +111,22 @@ func genColorCombinations(pattern *Pattern, fieldc int, base []int, n int, allCa
 		}
 
 		newBits := append(cloneArray(bits), bit)
-		if n < (*pattern).ChainC()-1 {
-			cache[n][bit] = struct{}{}
+
+		key := cacheKey(newBits)
+		c, ok := allCache[key]
+		if ok {
+			(*pattern).Incr("AllCacheSkipCount")
+			allCache[key] += 1
+			if c == n {
+				delete(allCache, key)
+			}
+			return
 		}
 
 		genColorCombinations(pattern, fieldc, newBase, n+1, allCache, cache, newBits, colorcs[1:], field)
+		if !ok && n < (*pattern).ChainC()-2 {
+			allCache[key] = 0
+		}
 	}
 }
 
@@ -142,7 +140,7 @@ func handleCondition(condition <-chan conditions, wg *sync.WaitGroup) {
 		for i := 0; i < len(cache); i++ {
 			cache[i] = map[int]struct{}{}
 		}
-		allCache := make(map[string]struct{})
+		allCache := make(map[string]int)
 		genColorCombinations(cond.pattern, (*cond.pattern).FieldC(), cond.base, 0, allCache, cache, []int{}, cond.colorc, cond.field)
 	}
 	wg.Done()
@@ -158,8 +156,11 @@ func genCombinations(pattern *Pattern, base []int, colorc []int, condition chan<
 
 	if fieldc > ctotal {
 		emptycs := (*pattern).GenValidEmpties(pattern, base, fieldc, ctotal)
-		fmt.Fprintf(os.Stderr, "valid empties: %d\n", len(emptycs))
-		for _, emptyc := range emptycs {
+		emptycsLen := len(emptycs)
+		fmt.Fprintf(os.Stderr, "valid empties: %d\n", emptycsLen)
+		for i, emptyc := range emptycs {
+			t := time.Now()
+			fmt.Fprintf(os.Stderr, "[%s] emptyc: %d / %d (%0.2f%%)\n", t.Format("2006-01-02 15:04:05"), i+1, emptycsLen, float64((i+1)*100)/float64(emptycsLen))
 			base, _ := exclude(base, emptyc)
 			cond := conditions{
 				pattern: pattern,

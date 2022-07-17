@@ -133,6 +133,7 @@ func createFlipShape(p *Pattern, puyos []int) *puyo2.ShapeBitField {
 
 func checkShape(p *Pattern, puyos []int, opt options) {
 	(*p).Incr("CheckCount")
+	hwm := [3]int{} // multi27 dependent
 	sbf := puyo2.NewShapeBitField()
 	for _, puyo := range puyos {
 		shape := puyo2.NewFieldBits()
@@ -140,23 +141,30 @@ func checkShape(p *Pattern, puyos []int, opt options) {
 			if puyo&1 == 1 {
 				pos := (*p).Index2Field(i)
 				shape.SetOnebit(pos[0], pos[1])
+				if hwm[pos[0]] < pos[1] {
+					hwm[pos[0]] = pos[1]
+				}
 			}
 			puyo >>= 1
 		}
 		sbf.AddShape(shape)
 	}
 
+	flip := hwm[0] != hwm[2] // multi27 dependent
+
 	result := sbf.Simulate()
 	if result.Chains == (*p).ChainC() {
 		(*p).Incr("FoundCount")
 		fmt.Println(sbf.ChainOrderedFieldString())
-		sbf.ExportChainImage(fmt.Sprintf("%s/%s.png", opt.Dir, sbf.ChainOrderedFieldString()))
-		fsbf := createFlipShape(p, puyos)
-		fsbf.Simulate()
-		if sbf.ChainOrderedFieldString() != fsbf.ChainOrderedFieldString() {
-			(*p).Incr("FoundCount")
-			fmt.Println(fsbf.ChainOrderedFieldString())
-			fsbf.ExportChainImage(fmt.Sprintf("%s/%s.png", opt.Dir, fsbf.ChainOrderedFieldString()))
+		// sbf.ExportChainImage(fmt.Sprintf("%s/%s.png", opt.Dir, sbf.ChainOrderedFieldString()))
+		if flip {
+			fsbf := createFlipShape(p, puyos)
+			fsbf.Simulate()
+			if sbf.ChainOrderedFieldString() != fsbf.ChainOrderedFieldString() {
+				(*p).Incr("FoundCount")
+				fmt.Println(fsbf.ChainOrderedFieldString())
+				// fsbf.ExportChainImage(fmt.Sprintf("%s/%s.png", opt.Dir, fsbf.ChainOrderedFieldString()))
+			}
 		}
 	}
 }
