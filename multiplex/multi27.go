@@ -11,6 +11,7 @@ import (
 )
 
 type Multi27Pattern struct {
+	AllCacheSkipCount int
 	CacheSkipCount    int
 	CombiCount        int
 	ExecCombiCount    int
@@ -27,6 +28,8 @@ outer:
 	for {
 		incr := <-p.increment
 		switch incr.name {
+		case "AllCacheSkipCount":
+			p.AllCacheSkipCount += incr.value
 		case "CacheSkipCount":
 			p.CacheSkipCount += incr.value
 		case "CombiCount":
