@@ -16,7 +16,8 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${fileDirname}"
+            "program": "${fileDirname}",
+            "args": ["-dir", "test", "-chains", "3"]
         }
     ]
 }
