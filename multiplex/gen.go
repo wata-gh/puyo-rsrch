@@ -89,6 +89,10 @@ func genColorCombinations(pattern *Pattern, fieldc int, base []int, n int, allCa
 	}
 
 	combins := combin.Combinations(len(base), colorcs[:1][0])
+	// we only have to check half of last patterns.
+	if n == (*pattern).ChainC()-2 {
+		combins = combins[:len(combins)/2]
+	}
 	for _, combin := range combins {
 		newBase, cv := exclude(cloneArray(base), combin)
 		bit := intArray2Bit(cv)
