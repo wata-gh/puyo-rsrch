@@ -10,9 +10,9 @@ import (
 func fields(chains int) [][]int {
 	results := [][]int{}
 	for x := 0; x < 10; x++ {
-		for y := 0; y < 10; y++ {
-			for z := 0; z < 10; z++ {
-				if x+y+z == chains*4 && y != 0 {
+		for y := 0; y <= 10; y++ {
+			for z := 0; z <= 10; z++ {
+				if x+y+z == chains*4 {
 					results = append(results, []int{x, y, z, 0, 0, 0})
 				}
 			}
