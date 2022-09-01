@@ -5,6 +5,8 @@
 *.so
 *.dylib
 *.txt
+*.gz
+*.mp4
 
 # Test binary, built with `go test -c`
 *.test
@@ -25,3 +27,10 @@
 */**/*.png
 
 output/
+playground/cmd/experiment/experiment
+playground/cmd/expm/expm
+playground/cmd/grouping/grouping
+playground/cmd/m2sbf/m2sbf
+playground/cmd/findshape/findshape
+playground/cmd/m2fb/m2fb
+playground/cmd/experiment/images
