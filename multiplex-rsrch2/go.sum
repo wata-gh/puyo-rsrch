@@ -1,4 +1,2 @@
-github.com/wata-gh/puyo2 v0.0.0-20220814052438-59eb84214119 h1:We+dJ/5QFjK4k/+C9FkJrI/ngRuwcVhC3UUVxYQ5wrA=
-github.com/wata-gh/puyo2 v0.0.0-20220814052438-59eb84214119/go.mod h1:ve68f5p9MO8MJjh61fzilJ01FLPBZVJBVxFf9HDE/To=
-gonum.org/v1/gonum v0.11.0 h1:f1IJhK4Km5tBJmaiJXtk/PkL4cdVX6J+tGiM187uT5E=
-gonum.org/v1/gonum v0.11.0/go.mod h1:fSG4YDCxxUZQJ7rKsQrj0gMOg00Il0Z96/qMA4bVQhA=
+github.com/wata-gh/puyo2 v0.0.0-20221021082425-5313f4ec9f32 h1:JaZoLmp7kmHBKRhPnCkb2h2JsoSRHHxykpnb6W/HZWM=
+github.com/wata-gh/puyo2 v0.0.0-20221021082425-5313f4ec9f32/go.mod h1:7KT77p4I/v2NmChH0zk4Xje/qn4Yn5+Rm507AjbfIQg=

@@ -10,6 +10,7 @@ import (
 )
 
 var clusters [][]int = [][]int{
+	// cluster_id, x_offset, y-length...
 	{0, 0, 1, 1, 1, 1},
 	{0, 1, 1, 1, 1, 1},
 	{0, 2, 1, 1, 1, 1},
@@ -99,24 +100,25 @@ ClusterLoop:
 	return results
 }
 
-func fillUp(field []int, chainc int) Results {
+func fillUp(field []int, chainc int, initRowClusters []int) Results {
 	var results Results
-	results = fill(field, chainc, 1, []int{0, 0, 0, 0, 0, 0}, [][]int{}, results)
+	rowClusters := make([]int, len(initRowClusters))
+	copy(rowClusters, initRowClusters)
+	results = fill(field, chainc, 1, rowClusters, [][]int{}, results)
 	return results
 }
 
-func FillSearch(fields chan []int, chainc int, wg *sync.WaitGroup) {
+func FillSearch(fields chan []int, chainc int, initRowClusters []int, initSbf *puyo2.ShapeBitField, wg *sync.WaitGroup) {
 	for {
 		field := <-fields
 		if len(field) == 0 {
 			break
 		}
 		fmt.Fprintln(os.Stderr, field)
-		patterns := fillUp(field, chainc)
-		fmt.Fprintf(os.Stderr, "%v %d\n", field, len(patterns))
+		patterns := fillUp(field, chainc, initRowClusters)
 		for i, pattern := range patterns {
 			fmt.Fprintf(os.Stderr, "%v %d/%d\n", field, i, len(patterns))
-			Fill(pattern, chainc)
+			Fill(pattern, chainc, initSbf)
 		}
 	}
 	wg.Done()
@@ -131,6 +133,7 @@ func shapes(c int, x int) []*puyo2.FieldBits {
 		s.SetOnebit(x+1, 1)
 		s.SetOnebit(x+2, 1)
 		s.SetOnebit(x+3, 1)
+		shapes = append(shapes, s)
 	case 1:
 		s := puyo2.NewFieldBits()
 		s.SetOnebit(x, 1)
@@ -259,7 +262,11 @@ func willNotDrop(y int, shape *puyo2.FieldBits, overall *puyo2.FieldBits) bool {
 		} else {
 			col := shape.ColBits(x)
 			if col > 0 {
-				for z := y; z < bits.TrailingZeros64(col>>(x*16)); z++ {
+				sb := x * 16
+				if x > 3 {
+					sb = (x - 4) * 16
+				}
+				for z := y; z < bits.TrailingZeros64(col>>sb); z++ {
 					if overall.Onebit(x, z) == 0 {
 						return false
 					}
@@ -270,12 +277,78 @@ func willNotDrop(y int, shape *puyo2.FieldBits, overall *puyo2.FieldBits) bool {
 	return true
 }
 
+func fireable(sbf *puyo2.ShapeBitField) bool {
+	os := sbf.OriginalOverallShape()
+	first := sbf.ChainOrderedShapes[0][0]
+	for i := 0; i < 3; i++ {
+		cb := first.ColBits(i)
+		cb >>= i * 16
+		n := bits.Len64(cb)
+		if n == 0 {
+			continue
+		}
+		// upper space is empty.
+		if os.Onebit(i, n) == 0 {
+			return true
+		}
+		if os.Onebit(i, n+1) == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func fulfillGtrRensabi(osbf *puyo2.ShapeBitField, nsbf *puyo2.ShapeBitField) bool {
+	first := nsbf.ChainOrderedShapes[0][0]
+	if first.Onebit(2, 2) > 0 || first.Onebit(2, 3) > 0 {
+		fb := puyo2.NewFieldBits()
+		fb.SetOnebit(0, 1)
+		fb.SetOnebit(1, 1)
+		fb.SetOnebit(1, 2)
+		fb.SetOnebit(2, 2)
+		osbf.InsertShape(fb)
+		fb = puyo2.NewFieldBits()
+		fb.SetOnebit(0, 2)
+		fb.SetOnebit(0, 3)
+		fb.SetOnebit(1, 2)
+		osbf.InsertShape(fb)
+		r := osbf.Simulate()
+		if r.Chains == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func fulfillGtrMultiplex(osbf *puyo2.ShapeBitField) bool {
+	if osbf.Shapes[0].Onebit(0, 1) > 0 {
+		return false
+	}
+	return true
+}
+
+func fulfillGtrMultiplex2(osbf *puyo2.ShapeBitField, nsbf *puyo2.ShapeBitField) bool {
+	lastShape := nsbf.ChainOrderedShapes[len(nsbf.ChainOrderedShapes)-1][0]
+	y := bits.Len64(osbf.Shapes[0].ColBits(0)) - 1
+	ly := bits.TrailingZeros64(lastShape.ColBits(0))
+	return y > ly && fireable(nsbf)
+}
+
 func place(osbf *puyo2.ShapeBitField, clusters [][]int, chainc int, last *puyo2.FieldBits) {
 	if len(clusters) == 0 {
+		// TODO: this is not versatile.
+		// if fulfillGtrMultiplex(osbf) {
+		// 	return
+		// }
 		nsbf := osbf.Clone()
 		result := nsbf.Simulate()
 		if result.Chains == chainc {
-			fmt.Println(nsbf.ChainOrderedFieldString())
+			if fulfillGtrRensabi(osbf, nsbf) {
+				fmt.Println(osbf.FieldString())
+			}
+			// if fulfillGtrMultiplex2(osbf, nsbf) {
+			// 	fmt.Println(nsbf.ChainOrderedFieldString())
+			// }
 		}
 		return
 	}
@@ -285,23 +358,24 @@ func place(osbf *puyo2.ShapeBitField, clusters [][]int, chainc int, last *puyo2.
 		overall.SetOnebit(x, 0)
 	}
 	for _, shape := range shapes(cluster[0], cluster[1]) {
+		// TODO: prune unnecessary y-offset.
 		for yOffset := 0; yOffset < 13; yOffset++ {
 			s := shape.FastLift(yOffset)
+			// if shape uses 13th row, ignore.
 			if s.Equals(s.MaskField13()) == false {
 				continue
 			}
 			if willNotDrop(yOffset, s, overall) {
-				sfb := osbf.Clone()
-				sfb.InsertShape(s)
-				place(sfb, clusters[1:], chainc, shape)
+				sbf := osbf.Clone()
+				sbf.InsertShape(s)
+				place(sbf, clusters[1:], chainc, shape)
 			}
 		}
 	}
 }
 
-func Fill(result Result, chainc int) {
-	sbf := puyo2.NewShapeBitField()
-	place(sbf, result.results, chainc, puyo2.NewFieldBits())
+func Fill(result Result, chainc int, initSbf *puyo2.ShapeBitField) {
+	place(initSbf.Clone(), result.results, chainc, puyo2.NewFieldBits())
 }
 
 // func removeDuplication(results Results) Results {
