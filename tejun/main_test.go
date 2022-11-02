@@ -10,7 +10,7 @@ import (
 func TestRun(t *testing.T) {
 	// haipuyo := "rrprpypyrbbbpbbprrrybbyppbyyrppybybrbbbppppbyypybppyypbyrbyyyppppbpppyryyrpyybpbryrbbrpybrrbrrbbpypyrryrrybrbpbbybrrpppyrprrryrrbybrbbrbrybprpyppybyrpprpbbyybbyybrprbybryrrbrybyppbbbpyybprpyyrryppyrrbppybyyypprpryrpbpbpbyrpyprybrybrrbppyrbyypryrbbprrbprprb"
 	// haipuyo := "rrprpypy" // rbbbpbbprrrybbyp
-	haipuyo := "rrprbbbr"
+	haipuyo := "ppbbygyyppppybbygypyggpb"
 	opt := Options{
 		Haipuyo:   haipuyo,
 		Threshold: 5,
@@ -93,105 +93,105 @@ func TestSetFirstTwoPuyoSets(t *testing.T) {
 	fccs := []*FieldColorCandidate{
 		fcc,
 	}
-	placements := setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Red}, {Axis: puyo2.Red, Child: puyo2.Red}}, fccs)
-	if placements[0].Pos != [2]int{2, 0} || placements[1].Pos != [2]int{2, 0} {
+	poss := setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Red}, {Axis: puyo2.Red, Child: puyo2.Red}}, fccs)
+	if poss[0] != [2]int{2, 0} || poss[1] != [2]int{2, 0} {
 		bf.ShowDebug()
 		t.Fatal("aaaa failed")
 	}
 	bf = puyo2.NewBitField()
 	fccs[0] = NewFieldColorCandidate([]puyo2.Color{puyo2.Red, puyo2.Blue, puyo2.Yellow, puyo2.Green}, sbf)
-	placements = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Red}, {Axis: puyo2.Red, Child: puyo2.Blue}}, fccs)
-	if placements[0].Pos != [2]int{0, 1} || placements[1].Pos != [2]int{2, 2} {
+	poss = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Red}, {Axis: puyo2.Red, Child: puyo2.Blue}}, fccs)
+	if poss[0] != [2]int{0, 1} || poss[1] != [2]int{2, 2} {
 		bf.ShowDebug()
 		t.Fatal("aaab failed")
 	}
 	bf = puyo2.NewBitField()
-	placements = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Red}, {Axis: puyo2.Blue, Child: puyo2.Red}}, fccs)
-	if placements[0].Pos != [2]int{0, 1} || placements[1].Pos != [2]int{2, 0} {
+	poss = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Red}, {Axis: puyo2.Blue, Child: puyo2.Red}}, fccs)
+	if poss[0] != [2]int{0, 1} || poss[1] != [2]int{2, 0} {
 		bf.ShowDebug()
 		fmt.Println(bf.MattulwanEditorParam())
 		t.Fatal("aaba failed")
 	}
 	bf = puyo2.NewBitField()
-	placements = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Red}, {Axis: puyo2.Blue, Child: puyo2.Blue}}, fccs)
-	if placements[0].Pos != [2]int{0, 1} || placements[1].Pos != [2]int{0, 1} {
+	poss = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Red}, {Axis: puyo2.Blue, Child: puyo2.Blue}}, fccs)
+	if poss[0] != [2]int{0, 1} || poss[1] != [2]int{0, 1} {
 		bf.ShowDebug()
 		fmt.Println(bf.MattulwanEditorParam())
 		t.Fatal("aabb failed")
 	}
 	bf = puyo2.NewBitField()
-	placements = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Red}, {Axis: puyo2.Blue, Child: puyo2.Green}}, fccs)
-	if placements[0].Pos != [2]int{0, 1} || placements[1].Pos != [2]int{2, 1} {
+	poss = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Red}, {Axis: puyo2.Blue, Child: puyo2.Green}}, fccs)
+	if poss[0] != [2]int{0, 1} || poss[1] != [2]int{2, 1} {
 		bf.ShowDebug()
 		fmt.Println(bf.MattulwanEditorParam())
 		t.Fatal("aabc failed")
 	}
 	bf = puyo2.NewBitField()
-	placements = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Red, Child: puyo2.Red}}, fccs)
-	if placements[0].Pos != [2]int{2, 2} || placements[1].Pos != [2]int{0, 1} {
+	poss = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Red, Child: puyo2.Red}}, fccs)
+	if poss[0] != [2]int{2, 2} || poss[1] != [2]int{0, 1} {
 		bf.ShowDebug()
 		fmt.Println(bf.MattulwanEditorParam())
 		t.Fatal("abaa failed")
 	}
 	bf = puyo2.NewBitField()
-	placements = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Red, Child: puyo2.Blue}}, fccs)
-	if placements[0].Pos != [2]int{0, 2} || placements[1].Pos != [2]int{1, 2} {
+	poss = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Red, Child: puyo2.Blue}}, fccs)
+	if poss[0] != [2]int{0, 2} || poss[1] != [2]int{1, 2} {
 		bf.ShowDebug()
 		fmt.Println(bf.MattulwanEditorParam())
 		t.Fatal("abab failed")
 	}
 	bf = puyo2.NewBitField()
-	placements = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Blue, Child: puyo2.Blue}}, fccs)
-	if placements[0].Pos != [2]int{2, 0} || placements[1].Pos != [2]int{0, 1} {
+	poss = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Blue, Child: puyo2.Blue}}, fccs)
+	if poss[0] != [2]int{2, 0} || poss[1] != [2]int{0, 1} {
 		bf.ShowDebug()
 		fmt.Println(bf.MattulwanEditorParam())
 		t.Fatal("abbb failed")
 	}
 	bf = puyo2.NewBitField()
-	placements = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Blue, Child: puyo2.Green}}, fccs)
-	if placements[0].Pos != [2]int{0, 2} || placements[1].Pos != [2]int{1, 1} {
+	poss = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Blue, Child: puyo2.Green}}, fccs)
+	if poss[0] != [2]int{0, 2} || poss[1] != [2]int{1, 1} {
 		bf.ShowDebug()
 		fmt.Println(bf.MattulwanEditorParam())
 		t.Fatal("abbc failed")
 	}
 	bf = puyo2.NewBitField()
-	placements = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Blue, Child: puyo2.Red}}, fccs)
-	if placements[0].Pos != [2]int{0, 2} || placements[1].Pos != [2]int{1, 0} {
+	poss = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Blue, Child: puyo2.Red}}, fccs)
+	if poss[0] != [2]int{0, 2} || poss[1] != [2]int{1, 0} {
 		bf.ShowDebug()
 		fmt.Println(bf.MattulwanEditorParam())
 		t.Fatal("abba failed")
 	}
 	bf = puyo2.NewBitField()
-	placements = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Red, Child: puyo2.Green}}, fccs)
-	if placements[0].Pos != [2]int{1, 1} || placements[1].Pos != [2]int{0, 0} {
+	poss = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Red, Child: puyo2.Green}}, fccs)
+	if poss[0] != [2]int{1, 1} || poss[1] != [2]int{0, 0} {
 		bf.ShowDebug()
 		fmt.Println(bf.MattulwanEditorParam())
 		t.Fatal("abac failed")
 	}
 	bf = puyo2.NewBitField()
-	placements = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Green, Child: puyo2.Red}}, fccs)
-	if placements[0].Pos != [2]int{1, 1} || placements[1].Pos != [2]int{0, 2} {
+	poss = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Green, Child: puyo2.Red}}, fccs)
+	if poss[0] != [2]int{1, 1} || poss[1] != [2]int{0, 2} {
 		bf.ShowDebug()
 		fmt.Println(bf.MattulwanEditorParam())
 		t.Fatal("abac failed")
 	}
 	bf = puyo2.NewBitField()
-	placements = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Green, Child: puyo2.Green}}, fccs)
-	if placements[0].Pos != [2]int{2, 1} || placements[1].Pos != [2]int{0, 1} {
+	poss = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Green, Child: puyo2.Green}}, fccs)
+	if poss[0] != [2]int{2, 1} || poss[1] != [2]int{0, 1} {
 		bf.ShowDebug()
 		fmt.Println(bf.MattulwanEditorParam())
 		t.Fatal("abcc failed")
 	}
 	bf = puyo2.NewBitField()
-	placements = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Green, Child: puyo2.Blue}}, fccs)
-	if placements[0].Pos != [2]int{2, 3} || placements[1].Pos != [2]int{0, 2} {
+	poss = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Green, Child: puyo2.Blue}}, fccs)
+	if poss[0] != [2]int{2, 3} || poss[1] != [2]int{0, 2} {
 		bf.ShowDebug()
 		fmt.Println(bf.MattulwanEditorParam())
 		t.Fatal("abcb failed")
 	}
 	bf = puyo2.NewBitField()
-	placements = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Green, Child: puyo2.Red}}, fccs)
-	if placements[0].Pos != [2]int{1, 1} || placements[1].Pos != [2]int{0, 2} {
+	poss = setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{{Axis: puyo2.Red, Child: puyo2.Blue}, {Axis: puyo2.Green, Child: puyo2.Red}}, fccs)
+	if poss[0] != [2]int{1, 1} || poss[1] != [2]int{0, 2} {
 		bf.ShowDebug()
 		fmt.Println(bf.MattulwanEditorParam())
 		t.Fatal("abca failed")
