@@ -43,7 +43,7 @@ func placeAndSetColor(bf *puyo2.BitField, place *puyo2.PuyoSetPlacement, fccs []
 	return vfccs
 }
 
-func setFirstTwoPuyoSets(bf *puyo2.BitField, puyoSets [2]*puyo2.PuyoSet, fccs []*FieldColorCandidate) []*puyo2.PuyoSetPlacement {
+func setFirstTwoPuyoSets(bf *puyo2.BitField, puyoSets [2]*puyo2.PuyoSet, fccs []*FieldColorCandidate) [2][2]int {
 	first := puyoSets[0]
 	second := puyoSets[1]
 	a := first.Axis
@@ -99,10 +99,7 @@ func setFirstTwoPuyoSets(bf *puyo2.BitField, puyoSets [2]*puyo2.PuyoSet, fccs []
 			panic(fmt.Sprintf("first: %+v second: %+v\n", first, second))
 		}
 	}
-	return []*puyo2.PuyoSetPlacement{
-		bf.SearchPlacementForPos(first, firstPos),
-		bf.SearchPlacementForPos(second, secondPos),
-	}
+	return [2][2]int{firstPos, secondPos}
 }
 
 func searchPlacement(fccs []*FieldColorCandidate, bf *puyo2.BitField, puyoSet *puyo2.PuyoSet) []*puyo2.PuyoSetPlacement {
@@ -254,9 +251,10 @@ func run(opt Options) {
 		fccs[i] = NewFieldColorCandidate(colors, sbf)
 	}
 
-	placements := setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{puyoSets[0], puyoSets[1]}, fccs)
+	poss := setFirstTwoPuyoSets(bf, [2]*puyo2.PuyoSet{puyoSets[0], puyoSets[1]}, fccs)
 	hands := []puyo2.Hand{}
-	for _, placement := range placements {
+	for i, pos := range poss {
+		placement := bf.SearchPlacementForPos(puyoSets[i], pos)
 		fccs = placeAndSetColor(bf, placement, fccs)
 		if len(fccs) == 0 {
 			return
@@ -272,7 +270,7 @@ func run(opt Options) {
 		return
 	}
 
-	placements = searchPlacement(fccs, bf, puyoSets[2])
+	placements := searchPlacement(fccs, bf, puyoSets[2])
 	fmt.Fprintf(os.Stderr, "parallel num: %d\n", len(placements))
 	for _, placement := range placements {
 		bfc := bf.Clone()
