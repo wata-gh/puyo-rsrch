@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -15,30 +16,62 @@ import (
 type Options struct {
 	Haipuyo   string
 	Threshold int
+	BeamWidth int
 	Param     string
 	Shapes    []*puyo2.ShapeBitField
+	Result    chan string
 }
 
-func placeAndSetColor(bf *puyo2.BitField, place *puyo2.PuyoSetPlacement, fccs []*FieldColorCandidate) []*FieldColorCandidate {
+type SearchCondition struct {
+	opt      Options
+	bf       *puyo2.BitField
+	fccs     []*FieldColorCandidate
+	puyoSets []*puyo2.PuyoSet
+	hands    []puyo2.Hand
+	depth    int
+}
+
+func placeAndSetColor(bf *puyo2.BitField, place *puyo2.PuyoSetPlacement, fccs []*FieldColorCandidate, threshold int) []*FieldColorCandidate {
 	bf.SetColor(place.PuyoSet.Axis, place.AxisX, place.AxisY)
 	bf.SetColor(place.PuyoSet.Child, place.ChildX, place.ChildY)
 	vfccs := []*FieldColorCandidate{}
 	for _, fcc := range fccs {
-		acc := fcc.GetColorCandidate(place.AxisX, place.AxisY)
-		if acc.Contains(place.PuyoSet.Axis) == false {
-			continue
+		nfcc := fcc.Clone()
+		// must place puyo from bottom.
+		if place.AxisY <= place.ChildY {
+			acc := fcc.GetColorCandidate(place.AxisX, place.AxisY)
+			if acc.Contains(place.PuyoSet.Axis) == false {
+				continue
+			}
+			nfcc.SetColorCandidate(place.AxisX, place.AxisY, []puyo2.Color{place.PuyoSet.Axis})
+
+			ccc := nfcc.GetColorCandidate(place.ChildX, place.ChildY)
+			if ccc.Contains(place.PuyoSet.Child) == false {
+				continue
+			}
+			nfcc.SetColorCandidate(place.ChildX, place.ChildY, []puyo2.Color{place.PuyoSet.Child})
+		} else { // child is lower than axis.
+			ccc := fcc.GetColorCandidate(place.ChildX, place.ChildY)
+			if ccc.Contains(place.PuyoSet.Child) == false {
+				continue
+			}
+			nfcc.SetColorCandidate(place.ChildX, place.ChildY, []puyo2.Color{place.PuyoSet.Child})
+
+			acc := nfcc.GetColorCandidate(place.AxisX, place.AxisY)
+			if acc.Contains(place.PuyoSet.Axis) == false {
+				continue
+			}
+			nfcc.SetColorCandidate(place.AxisX, place.AxisY, []puyo2.Color{place.PuyoSet.Axis})
 		}
-		ccc := fcc.GetColorCandidate(place.ChildX, place.ChildY)
-		if ccc.Contains(place.PuyoSet.Child) == false {
-			continue
-		}
-		fcc = fcc.Clone()
-		fcc.SetColorCandidate(place.AxisX, place.AxisY, []puyo2.Color{place.PuyoSet.Axis})
-		fcc.SetColorCandidate(place.ChildX, place.ChildY, []puyo2.Color{place.PuyoSet.Child})
 		if place.Chigiri {
-			fcc.ChigiriCount += 1
+			nfcc.ChigiriCount += 1
 		}
-		vfccs = append(vfccs, fcc)
+		// remove candidate if it's over threshold
+		if threshold != -1 && countOuterPlaced(bf, nfcc) >= threshold {
+			continue
+		}
+
+		vfccs = append(vfccs, nfcc)
 	}
 	return vfccs
 }
@@ -154,40 +187,83 @@ func countOuterPlaced(bf *puyo2.BitField, fcc *FieldColorCandidate) int {
 	return empty.And(overall).PopCount()
 }
 
-func search(opt Options, bf *puyo2.BitField, fccs []*FieldColorCandidate, puyoSets []*puyo2.PuyoSet, hands []puyo2.Hand, depth int, wg *sync.WaitGroup) {
-	if len(puyoSets) == 0 {
-		var b strings.Builder
-		for _, fcc := range fccs {
-			fmt.Fprintf(&b, " %s:%d(%d)", fcc.ShapeBitField.FieldString(), countPlaced(bf, fcc), fcc.ChigiriCount)
-		}
-		fmt.Printf("%s %s%s\n", bf.MattulwanEditorParam(), puyo2.ToSimpleHands(hands), b.String())
+func beamSearch(opt Options, conds []*SearchCondition) {
+	if len(conds) == 0 {
 		return
 	}
 
-	placements := searchPlacement(fccs, bf, puyoSets[0])
+	sort.Slice(conds, func(i, j int) bool {
+		return len(conds[i].fccs) > len(conds[j].fccs)
+	})
+	width := opt.BeamWidth
+	if width == -1 || len(conds) < width {
+		width = len(conds)
+	} else if len(conds) > width {
+		cutoff := len(conds[width-1].fccs)
+		for i := width; i < len(conds); i++ {
+			len := len(conds[i].fccs)
+			if cutoff > len {
+				width = i
+				break
+			}
+		}
+	}
+	fmt.Fprintf(os.Stderr, "width: %d\n", width)
+	nextCondsCandidates := make([][]*SearchCondition, width)
+	wg := sync.WaitGroup{}
+	for i, cond := range conds[:width] {
+		nextCondsCandidates[i] = []*SearchCondition{}
+		wg.Add(1)
+		go search(cond, &nextCondsCandidates[i], &wg)
+	}
+	wg.Wait()
+	nextConds := []*SearchCondition{}
+	for _, candidate := range nextCondsCandidates {
+		nextConds = append(nextConds, candidate...)
+	}
+	beamSearch(opt, nextConds)
+}
+
+func search(cond *SearchCondition, nextConds *[]*SearchCondition, wg *sync.WaitGroup) {
+	if len(cond.puyoSets) == 0 {
+		var b strings.Builder
+		sort.Slice(cond.fccs, func(i, j int) bool {
+			return countPlaced(cond.bf, cond.fccs[i]) > countPlaced(cond.bf, cond.fccs[j])
+		})
+		for _, fcc := range cond.fccs {
+			fmt.Fprintf(&b, " %s:%d(%d)", fcc.ShapeBitField.FieldString(), countPlaced(cond.bf, fcc), fcc.ChigiriCount)
+		}
+		cond.opt.Result <- fmt.Sprintf("%s %s%s", cond.bf.MattulwanEditorParam(), puyo2.ToSimpleHands(cond.hands), b.String())
+		wg.Done()
+		return
+	}
+
+	placements := searchPlacement(cond.fccs, cond.bf, cond.puyoSets[0])
 	for _, place := range placements {
-		bfc := bf.Clone()
-		nfccs := placeAndSetColor(bfc, place, fccs)
+		bfc := cond.bf.Clone()
+		nfccs := placeAndSetColor(bfc, place, cond.fccs, cond.opt.Threshold)
 		if len(nfccs) == 0 {
 			continue
 		}
 
-		// don't continue to search if it's over threshold
-		if opt.Threshold != -1 && maxOuterPlaced(bf, nfccs) >= opt.Threshold {
-			continue
-		}
-
-		nhands := make([]puyo2.Hand, len(hands))
-		copy(nhands, hands)
+		nhands := make([]puyo2.Hand, len(cond.hands))
+		copy(nhands, cond.hands)
 		nhands = append(nhands, puyo2.Hand{
 			PuyoSet:  *place.PuyoSet,
 			Position: place.Pos,
 		})
-		search(opt, bfc, nfccs, puyoSets[1:], nhands, depth+1, wg)
+
+		newCond := SearchCondition{
+			opt:      cond.opt,
+			bf:       bfc,
+			fccs:     nfccs,
+			puyoSets: cond.puyoSets[1:],
+			hands:    nhands,
+			depth:    cond.depth + 1,
+		}
+		*nextConds = append(*nextConds, &newCond)
 	}
-	if depth == 0 {
-		wg.Done()
-	}
+	wg.Done()
 }
 
 func createTableAndColors(puyoSets []*puyo2.PuyoSet) (map[puyo2.Color]puyo2.Color, []puyo2.Color) {
@@ -216,20 +292,13 @@ func createTableAndColors(puyoSets []*puyo2.PuyoSet) (map[puyo2.Color]puyo2.Colo
 		}
 		colors = append(colors, puyo2.Purple)
 	} else {
-		colors = []puyo2.Color{puyo2.Red, puyo2.Blue, puyo2.Yellow, puyo2.Green}
-	}
-	return table, colors
-}
-
-func maxOuterPlaced(bf *puyo2.BitField, fccs []*FieldColorCandidate) int {
-	max := 0
-	for _, fcc := range fccs {
-		out := countOuterPlaced(bf, fcc)
-		if out > max {
-			max = out
+		for k, v := range table {
+			if v != puyo2.Empty {
+				colors = append(colors, k)
+			}
 		}
 	}
-	return max
+	return table, colors
 }
 
 func run(opt Options) {
@@ -242,7 +311,6 @@ func run(opt Options) {
 	// }
 	// defer pprof.StopCPUProfile()
 
-	wg := sync.WaitGroup{}
 	puyoSets := puyo2.Haipuyo2PuyoSets(opt.Haipuyo)
 	table, colors := createTableAndColors(puyoSets)
 	bf := puyo2.NewBitFieldWithTableAndColors(table, colors)
@@ -255,7 +323,7 @@ func run(opt Options) {
 	hands := []puyo2.Hand{}
 	for i, pos := range poss {
 		placement := bf.SearchPlacementForPos(puyoSets[i], pos)
-		fccs = placeAndSetColor(bf, placement, fccs)
+		fccs = placeAndSetColor(bf, placement, fccs, opt.Threshold)
 		if len(fccs) == 0 {
 			return
 		}
@@ -270,38 +338,36 @@ func run(opt Options) {
 		return
 	}
 
-	placements := searchPlacement(fccs, bf, puyoSets[2])
-	fmt.Fprintf(os.Stderr, "parallel num: %d\n", len(placements))
-	for _, placement := range placements {
-		bfc := bf.Clone()
-		nfccs := placeAndSetColor(bfc, placement, fccs)
-		if len(nfccs) == 0 {
-			continue
-		}
-
-		// don't continue to search if it's over threshold
-		if opt.Threshold != -1 && maxOuterPlaced(bf, nfccs) >= opt.Threshold {
-			continue
-		}
-
-		nhands := make([]puyo2.Hand, len(hands))
-		copy(nhands, hands)
-		nhands = append(nhands, puyo2.Hand{
-			PuyoSet:  *placement.PuyoSet,
-			Position: placement.Pos,
-		})
-		wg.Add(1)
-		go search(opt, bfc, nfccs, puyoSets[3:], nhands, 0, &wg)
+	newCond := SearchCondition{
+		opt:      opt,
+		bf:       bf,
+		fccs:     fccs,
+		puyoSets: puyoSets[2:],
+		hands:    hands,
+		depth:    0,
 	}
-	wg.Wait()
+	beamSearch(opt, []*SearchCondition{&newCond})
+}
+
+func handleResult(result chan string, wg *sync.WaitGroup) {
+	for {
+		r := <-result
+		if r == "" {
+			break
+		}
+		fmt.Println(r)
+	}
+	wg.Done()
 }
 
 func main() {
+	wg := sync.WaitGroup{}
 	now := time.Now()
 	opt := Options{}
 	flag.StringVar(&opt.Param, "param", "a78", "field parameter")
 	flag.StringVar(&opt.Haipuyo, "haipuyo", "", "haipuyo")
 	flag.IntVar(&opt.Threshold, "threshold", -1, "threshold of out of placements")
+	flag.IntVar(&opt.BeamWidth, "width", -1, "beam search width")
 	flag.Parse()
 
 	fmt.Fprintf(os.Stderr, "%+v\n", opt)
@@ -314,6 +380,11 @@ func main() {
 	}
 	fmt.Fprintf(os.Stderr, "Shapes.Len(): %d\n", len(opt.Shapes))
 
+	opt.Result = make(chan string)
+	wg.Add(1)
+	go handleResult(opt.Result, &wg)
 	run(opt)
+	opt.Result <- ""
+	wg.Wait()
 	fmt.Fprintf(os.Stderr, "elapsed: %v ms\n", time.Since(now).Milliseconds())
 }
