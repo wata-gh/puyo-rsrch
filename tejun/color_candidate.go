@@ -127,7 +127,8 @@ func (fcc *FieldColorCandidate) Clone() *FieldColorCandidate {
 	nfcc.colors = fcc.colors
 
 	if fcc.BitField != nil {
-		nfcc.BitField = fcc.BitField.Clone()
+		// nfcc.BitField = fcc.BitField.Clone()
+		nfcc.BitField = fcc.BitField // CAUTION! shallow copy
 	}
 
 	nfcc.ColorCandidate = map[[2]int]*ColorCandidate{}

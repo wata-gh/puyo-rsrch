@@ -2,21 +2,98 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"strconv"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/wata-gh/puyo2"
 )
 
+func parseSimpleHands(handsStr string) []puyo2.Hand {
+	var hands []puyo2.Hand
+	data := strings.Split(handsStr, "")
+	for i := 0; i < len(data); i += 4 {
+		axis := puyo2.Rbygp2Color(data[i])
+		child := puyo2.Rbygp2Color(data[i+1])
+		row, err := strconv.Atoi(data[i+2])
+		if err != nil {
+			panic(err)
+		}
+		dir, err := strconv.Atoi(data[i+3])
+		if err != nil {
+			panic(err)
+		}
+		hands = append(hands, puyo2.Hand{PuyoSet: puyo2.PuyoSet{Axis: axis, Child: child}, Position: [2]int{row, dir}})
+	}
+	return hands
+}
+
+func TestPlaceAndSetColor(t *testing.T) {
+	puyoSets := puyo2.Haipuyo2PuyoSets("rrprpypyrbbbpbbprrry")
+	hands := parseSimpleHands("rr01pr20py20py20rb12bb02pb42bp30rr42ry33")
+	table, colors := createTableAndColors(puyoSets)
+	bf := puyo2.NewBitFieldWithTableAndColors(table, colors)
+	sbf := puyo2.NewShapeBitFieldWithFieldString("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1a1aaa332654113665443554222")
+	fcc := NewFieldColorCandidate(colors, sbf)
+	fcc.BitField = bf
+	fccs := []*FieldColorCandidate{}
+	fccs = append(fccs, fcc)
+
+	for _, hand := range hands {
+		place := bf.SearchPlacementForPos(&hand.PuyoSet, hand.Position)
+		fccs = placeAndSetColor(bf, place, fccs, -1)
+		// bf.ShowDebug()
+		fccs[0].ShowDebug()
+	}
+}
+
 func TestRun(t *testing.T) {
 	// haipuyo := "rrprpypyrbbbpbbprrrybbyppbyyrppybybrbbbppppbyypybppyypbyrbyyyppppbpppyryyrpyybpbryrbbrpybrrbrrbbpypyrryrrybrbpbbybrrpppyrprrryrrbybrbbrbrybprpyppybyrpprpbbyybbyybrprbybryrrbrybyppbbbpyybprpyyrryppyrrbppybyyypprpryrpbpbpbyrpyprybrybrrbppyrbyypryrbbprrbprprb"
-	// haipuyo := "rrprpypy" // rbbbpbbprrrybbyp
-	haipuyo := "ppbbygyyppppybbygypyggpb"
+	haipuyo := "ggggryrrgbbggggbrgyr" // rbbbpbbprrrybbyp
+	// haipuyo := "ppbbygyyppppybbygypyggpb"
 	opt := Options{
 		Haipuyo:   haipuyo,
 		Threshold: 5,
+		BeamWidth: 100,
 	}
+
+	bytes, err := ioutil.ReadFile("y.shapes")
+	if err != nil {
+		panic(err)
+	}
+
+	shapes := strings.Split(string(bytes), "\n")
+	for _, shape := range shapes {
+		shape := puyo2.NewShapeBitFieldWithFieldString(shape)
+		opt.Shapes = append(opt.Shapes, shape)
+	}
+
+	opt.Result = make(chan string)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go handleResult(opt.Result, &wg)
+
+	// opt.Shapes = append(opt.Shapes, puyo2.NewShapeBitFieldWithFieldString("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1a1aaa212654223665444551333"))
+	run(opt)
+	wg.Wait()
+}
+
+func TestSearch(t *testing.T) {
+	haipuyo := "rrprpypyrbbbpbbp"
+	opt := Options{
+		Haipuyo:   haipuyo,
+		Threshold: 7,
+	}
+	opt.Result = make(chan string)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go handleResult(opt.Result, &wg)
+
 	opt.Shapes = append(opt.Shapes, puyo2.NewShapeBitFieldWithFieldString("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1a1aaa212654223665444551333"))
 	run(opt)
+	wg.Wait()
 }
 
 func TestCountOuterPlaced(t *testing.T) {
